@@ -6,39 +6,28 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.account_balance_wallet_outlined,
-              size: 90,
-              color: Colors.grey.shade400,
+      child: Column(
+        mainAxisAlignment:
+            MainAxisAlignment.center,
+        children: const [
+          Icon(
+            Icons.wallet,
+            size: 90,
+            color: Colors.grey,
+          ),
+          SizedBox(height: 15),
+          Text(
+            "No Expenses Yet",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
             ),
-
-            const SizedBox(height: 20),
-
-            const Text(
-              'No Expenses Yet!',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-
-            const SizedBox(height: 10),
-
-            Text(
-              'Start tracking your daily expenses by adding your first expense.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
+          ),
+          SizedBox(height: 10),
+          Text(
+            "Tap Add Expense to start tracking.",
+          )
+        ],
       ),
     );
   }

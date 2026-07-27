@@ -1,7 +1,17 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
 
-void main() {
+import 'firebase_options.dart';
+import 'screens/main_screen.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  print("Firebase initialized successfully!");
+
   runApp(const SmartExpenseTracker());
 }
 
@@ -17,7 +27,7 @@ class SmartExpenseTracker extends StatelessWidget {
         useMaterial3: true,
         colorSchemeSeed: Colors.teal,
       ),
-      home: const HomeScreen(),
+      home: const MainScreen(),
     );
   }
 }

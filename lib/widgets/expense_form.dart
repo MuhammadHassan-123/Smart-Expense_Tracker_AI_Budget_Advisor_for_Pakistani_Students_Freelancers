@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import '../models/expense.dart';
 
 class ExpenseForm extends StatefulWidget {
-  final Function(Expense) onAddExpense;
+  final Function(Expense) onSave;
 
   const ExpenseForm({
     super.key,
-    required this.onAddExpense,
+    required this.onSave,
   });
 
   @override
@@ -14,160 +14,146 @@ class ExpenseForm extends StatefulWidget {
 }
 
 class _ExpenseFormState extends State<ExpenseForm> {
-  final _formKey = GlobalKey<FormState>();
 
-  final _amountController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  final _title = TextEditingController();
+  final _amount = TextEditingController();
 
-  String _selectedCategory = 'Food';
+  String category = "Food";
 
-  final List<String> _categories = [
-    'Food',
-    'Hostel Mess',
-    'Transport',
-    'Internet/Data',
-    'Entertainment',
-    'Project Tools',
-    'Shopping',
-    'Other',
+  final categories = [
+    "Food",
+    "Transport",
+    "Shopping",
+    "Bills",
+    "Entertainment",
+    "Education",
+    "Health",
+    "Other"
   ];
 
   @override
   void dispose() {
-    _amountController.dispose();
-    _descriptionController.dispose();
+    _title.dispose();
+    _amount.dispose();
     super.dispose();
   }
 
-  void _submitExpense() {
-    if (!_formKey.currentState!.validate()) {
+  void saveExpense() {
+
+    if(_title.text.isEmpty || _amount.text.isEmpty){
       return;
     }
 
-    final expense = Expense(
-      amount: double.parse(_amountController.text),
-      description: _descriptionController.text.trim(),
-      category: _selectedCategory,
-      date: DateTime.now(),
-    );
-
-    widget.onAddExpense(expense);
-
-    _amountController.clear();
-    _descriptionController.clear();
-
-    setState(() {
-      _selectedCategory = 'Food';
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Expense added successfully'),
+    widget.onSave(
+      Expense(
+        title: _title.text.trim(),
+        amount: double.parse(_amount.text),
+        category: category,
+        date: DateTime.now(),
       ),
     );
+
+    Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            children: [
-              TextFormField(
-                controller: _amountController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
-                ),
-                decoration: const InputDecoration(
-                  labelText: 'Amount (PKR)',
-                  prefixIcon: Icon(Icons.currency_rupee),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Enter amount';
-                  }
 
-                  if (double.tryParse(value) == null) {
-                    return 'Enter a valid amount';
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              TextFormField(
-                controller: _descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Description',
-                  prefixIcon: Icon(Icons.description),
-                  border: OutlineInputBorder(),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Enter description';
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                value: _selectedCategory,
-                decoration: const InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category),
-                  border: OutlineInputBorder(),
-                ),
-                items: _categories.map((category) {
-                  return DropdownMenuItem(
-                    value: category,
-                    child: Text(category),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _selectedCategory = value!;
-                  });
-                },
-              ),
-
-              const SizedBox(height: 16),
-
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Date: ${DateTime.now().day}/${DateTime.now().month}/${DateTime.now().year}',
-                  style: const TextStyle(fontSize: 16),
-                ),
-              ),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton.icon(
-                  onPressed: _submitExpense,
-                  icon: const Icon(Icons.add),
-                  label: const Text(
-                    'Add Expense',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.of(context).viewInsets.bottom+20,
       ),
+
+      child: SingleChildScrollView(
+
+        child: Column(
+
+          mainAxisSize: MainAxisSize.min,
+
+          children: [
+
+            const Text(
+              "Add Expense",
+              style: TextStyle(
+                  fontSize:24,
+                  fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height:20),
+
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(
+                labelText: "Title",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height:15),
+
+            TextField(
+              controller: _amount,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Amount",
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height:15),
+
+            DropdownButtonFormField(
+
+              value: category,
+
+              items: categories.map((e){
+
+                return DropdownMenuItem(
+                  value:e,
+                  child: Text(e),
+                );
+
+              }).toList(),
+
+              onChanged:(value){
+
+                setState(() {
+
+                  category=value!;
+
+                });
+
+              },
+
+            ),
+
+            const SizedBox(height:20),
+
+            SizedBox(
+
+              width:double.infinity,
+
+              child: ElevatedButton(
+
+                onPressed: saveExpense,
+
+                child: const Text("Save"),
+
+              ),
+
+            )
+
+          ],
+
+        ),
+
+      ),
+
     );
+
   }
+
 }
