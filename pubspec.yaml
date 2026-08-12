@@ -28,7 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  fl_chart: ^1.0.0
+  fl_chart: ^1.2.0
   flutter:
     sdk: flutter
 
@@ -37,6 +37,11 @@ dependencies:
   cupertino_icons: ^1.0.8
   firebase_core: ^4.12.1
   cloud_firestore: ^6.7.1
+  http: ^1.2.2
+  image_picker: ^1.2.3
+  google_mlkit_text_recognition: ^0.16.0
+  speech_to_text: ^7.4.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

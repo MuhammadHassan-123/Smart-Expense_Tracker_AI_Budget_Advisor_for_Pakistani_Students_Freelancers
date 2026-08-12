@@ -1,38 +1,78 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/expense.dart';
 
 class FirestoreService {
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
+  static const String _expensesKey = 'saved_expenses';
 
-  CollectionReference<Map<String, dynamic>>
-      get expenseCollection =>
-          _firestore.collection("expenses");
+  Future<List<Expense>> _loadExpenses() async {
+    final prefs = await SharedPreferences.getInstance();
 
-  Future<void> addExpense(Expense expense) async {
-    await expenseCollection.add(expense.toMap());
+    final String? data = prefs.getString(_expensesKey);
+
+    if (data == null || data.isEmpty) {
+      return [];
+    }
+
+    final List<dynamic> decoded = jsonDecode(data);
+
+    return decoded.map((item) {
+      return Expense(
+        id: item['id'],
+        title: item['title'] ?? '',
+        amount: (item['amount'] as num).toDouble(),
+        category: item['category'] ?? '',
+        date: DateTime.parse(item['date']),
+      );
+    }).toList();
   }
 
-  Stream<List<Expense>> getExpenses() {
-    return expenseCollection
-        .orderBy("date", descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) =>
-                Expense.fromMap(doc.data(), doc.id))
-            .toList());
+  Future<void> _saveExpenses(List<Expense> expenses) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final data = expenses.map((expense) {
+      return {
+        'id': expense.id,
+        'title': expense.title,
+        'amount': expense.amount,
+        'category': expense.category,
+        'date': expense.date.toIso8601String(),
+      };
+    }).toList();
+
+    await prefs.setString(
+      _expensesKey,
+      jsonEncode(data),
+    );
+  }
+
+  Future<void> addExpense(Expense expense) async {
+    final expenses = await _loadExpenses();
+
+    final newExpense = Expense(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: expense.title,
+      amount: expense.amount,
+      category: expense.category,
+      date: expense.date,
+    );
+
+    expenses.insert(0, newExpense);
+
+    await _saveExpenses(expenses);
+  }
+
+  Stream<List<Expense>> getExpenses() async* {
+    yield await _loadExpenses();
   }
 
   Future<void> deleteExpense(String id) async {
-    await expenseCollection.doc(id).delete();
-  }
+    final expenses = await _loadExpenses();
 
-  Future<void> updateExpense(
-      Expense expense,
-      ) async {
-    await expenseCollection
-        .doc(expense.id)
-        .update(expense.toMap());
+    expenses.removeWhere((expense) => expense.id == id);
+
+    await _saveExpenses(expenses);
   }
 }

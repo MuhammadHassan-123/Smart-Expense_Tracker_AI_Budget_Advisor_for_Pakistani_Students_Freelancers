@@ -25,6 +25,19 @@ class ExpenseService {
     }).toList();
   }
 
+  Future<Map<String, double>> getCategoryTotals() async {
+    final expenses = await getExpenses();
+
+    Map<String, double> totals = {};
+
+    for (var expense in expenses) {
+      totals[expense.category] =
+          (totals[expense.category] ?? 0) + expense.amount;
+    }
+
+    return totals;
+  }
+
   Future<void> deleteExpense(String documentId) async {
     await _expenses.doc(documentId).delete();
   }

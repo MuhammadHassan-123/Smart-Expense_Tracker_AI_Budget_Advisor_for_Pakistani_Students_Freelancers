@@ -57,7 +57,6 @@ class DefaultFirebaseOptions {
     projectId: 'smart-expense-tracker-2f1af',
     storageBucket: 'smart-expense-tracker-2f1af.firebasestorage.app',
   );
-
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyCtpOLu1WPGRRs8ZeETYCOM9vuGj6VB9xU',
     appId: '1:657117250511:ios:e35d25f66bc2cdbc8048ba',
@@ -66,7 +65,6 @@ class DefaultFirebaseOptions {
     storageBucket: 'smart-expense-tracker-2f1af.firebasestorage.app',
     iosBundleId: 'com.example.smartExpenseTracker',
   );
-
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyCtpOLu1WPGRRs8ZeETYCOM9vuGj6VB9xU',
     appId: '1:657117250511:ios:e35d25f66bc2cdbc8048ba',
