@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import '../models/expense.dart';
 
 class AIService {
-  sstatic const String apiKey =
+  static const String apiKey =
     String.fromEnvironment('GEMINI_API_KEY');
 
   Future<String> getAdvice({
