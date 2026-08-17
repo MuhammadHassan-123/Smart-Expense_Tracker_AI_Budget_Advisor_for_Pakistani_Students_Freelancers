@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../models/expense.dart';
 import '../services/speech_service.dart';
+import '../theme/app_theme.dart';
 
 class ExpenseForm extends StatefulWidget {
   final Future<void> Function(Expense) onSave;
+  final String initialCategory;
 
   const ExpenseForm({
     super.key,
     required this.onSave,
+    this.initialCategory = 'Food',
   });
 
   @override
@@ -16,264 +19,185 @@ class ExpenseForm extends StatefulWidget {
 }
 
 class _ExpenseFormState extends State<ExpenseForm> {
-  final _formKey = GlobalKey<FormState>();
+  final formKey = GlobalKey<FormState>();
+  final titleController = TextEditingController();
+  final amountController = TextEditingController();
+  final speechService = SpeechService();
 
-  final TextEditingController _title = TextEditingController();
-  final TextEditingController _amount = TextEditingController();
-
-  final SpeechService speechService = SpeechService();
-
-  bool _isListening = false;
-  bool _isSaving = false;
-
-  String category = "Food";
-
-  final List<String> categories = [
-    "Food",
-    "Transport",
-    "Shopping",
-    "Bills",
-    "Entertainment",
-    "Education",
-    "Health",
-    "Hostel",
-    "Internet",
-    "Medicine",
-    "Other",
+  final categories = const [
+    'Food',
+    'Transport',
+    'Housing',
+    'Bills',
+    'Education',
+    'Health',
+    'Shopping',
+    'Entertainment',
+    'Internet',
+    'Medicine',
+    'Personal',
+    'Other',
   ];
 
-  Future<void> _voiceInput() async {
-    if (_isSaving) return;
+  String category = 'Food';
+  ExpenseType type = ExpenseType.variable;
+  ExpenseStatus status = ExpenseStatus.paid;
+  bool listening = false;
+  bool saving = false;
 
-    setState(() {
-      _isListening = true;
-    });
+  @override
+  void initState() {
+    super.initState();
+    category = widget.initialCategory;
+  }
 
+  Future<void> voiceInput() async {
+    if (saving) return;
+    setState(() => listening = true);
     try {
       final text = await speechService.listen();
-
-      if (text.isNotEmpty && mounted) {
-        _title.text = text;
-      }
+      if (mounted && text.isNotEmpty) titleController.text = text;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Voice input failed: $e"),
-          ),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Voice input failed: $e')));
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isListening = false;
-        });
-      }
+      if (mounted) setState(() => listening = false);
     }
   }
 
-  Future<void> saveExpense() async {
-    if (_isSaving) return;
+  Future<void> save() async {
+    if (saving || !formKey.currentState!.validate()) return;
+    final amount = double.tryParse(amountController.text.trim());
+    if (amount == null || amount <= 0) return;
 
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    final amount = double.tryParse(_amount.text.trim());
-
-    if (amount == null) {
-      return;
-    }
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    final expense = Expense(
-      title: _title.text.trim(),
-      amount: amount,
-      category: category,
-      date: DateTime.now(),
-    );
-
+    setState(() => saving = true);
     try {
-      await widget.onSave(expense);
-
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
+      await widget.onSave(Expense(
+        title: titleController.text.trim(),
+        amount: amount,
+        category: category,
+        date: DateTime.now(),
+        type: type,
+        status: status,
+      ));
+      if (mounted) Navigator.of(context).pop();
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Could not save expense: $e"),
-          ),
-        );
+        setState(() => saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save expense: $e')));
       }
     }
   }
 
   @override
   void dispose() {
-    _title.dispose();
-    _amount.dispose();
+    titleController.dispose();
+    amountController.dispose();
+    speechService.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
-      child: SingleChildScrollView(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.account_balance_wallet,
-                size: 60,
-                color: Colors.teal,
-              ),
-
-              const SizedBox(height: 10),
-
-              const Text(
-                "Add New Expense",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+    final theme = Theme.of(context);
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(left: 20, right: 20, top: 18, bottom: MediaQuery.viewInsetsOf(context).bottom + 22),
+        child: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  const IconBadge(icon: Icons.add_card_rounded, color: AppColors.primary, size: 40, iconSize: 19),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text('Add expense', style: theme.textTheme.headlineSmall)),
+                  IconButton(onPressed: () => Navigator.pop(context), icon: const Icon(Icons.close_rounded)),
+                ]),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: amountController,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(labelText: 'Amount', prefixText: 'Rs. ', prefixIcon: Icon(Icons.payments_outlined)),
+                  validator: (value) => value == null || double.tryParse(value.trim()) == null || double.parse(value.trim()) <= 0 ? 'Enter a valid amount' : null,
                 ),
-              ),
-
-              const SizedBox(height: 25),
-
-              TextFormField(
-                controller: _title,
-                enabled: !_isSaving,
-                decoration: InputDecoration(
-                  labelText: "Expense Title",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: titleController,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: 'What was it for?',
+                    prefixIcon: const Icon(Icons.notes_outlined),
+                    suffixIcon: listening
+                        ? const Padding(padding: EdgeInsets.all(12), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)))
+                        : IconButton(onPressed: voiceInput, icon: const Icon(Icons.mic_none_rounded)),
                   ),
-                  prefixIcon: const Icon(Icons.edit),
-                  suffixIcon: _isListening
-                      ? const Padding(
-                          padding: EdgeInsets.all(12),
-                          child: SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
-                          ),
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.mic),
-                          onPressed: _voiceInput,
-                        ),
+                  validator: (value) => value == null || value.trim().isEmpty ? 'Enter a title' : null,
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return "Please enter expense title";
-                  }
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 18),
-
-              TextFormField(
-                controller: _amount,
-                enabled: !_isSaving,
-                keyboardType:
-                    const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 14),
+                DropdownButtonFormField<String>(
+                  initialValue: category,
+                  decoration: const InputDecoration(labelText: 'Category', prefixIcon: Icon(Icons.category_outlined)),
+                  items: categories.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+                  onChanged: saving ? null : (value) => setState(() => category = value ?? category),
                 ),
-                decoration: InputDecoration(
-                  labelText: "Amount (PKR)",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.currency_rupee),
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return "Enter amount";
-                  }
-
-                  if (double.tryParse(value.trim()) == null) {
-                    return "Enter a valid amount";
-                  }
-
-                  return null;
-                },
-              ),
-
-              const SizedBox(height: 18),
-
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration: InputDecoration(
-                  labelText: "Category",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  prefixIcon: const Icon(Icons.category),
-                ),
-                items: categories.map((item) {
-                  return DropdownMenuItem<String>(
-                    value: item,
-                    child: Text(item),
-                  );
-                }).toList(),
-                onChanged: _isSaving
-                    ? null
-                    : (value) {
-                        if (value != null) {
-                          setState(() {
-                            category = value;
-                          });
-                        }
-                      },
-              ),
-
-              const SizedBox(height: 25),
-
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-                child: ElevatedButton.icon(
-                  onPressed: _isSaving ? null : saveExpense,
-                  icon: _isSaving
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Icon(Icons.save),
-                  label: Text(
-                    _isSaving ? "Saving..." : "Save Expense",
-                    style: const TextStyle(fontSize: 16),
+                const SizedBox(height: 18),
+                Row(children: [
+                  Expanded(child: _ChoiceSegment<ExpenseType>(label: 'Variable', value: ExpenseType.variable, groupValue: type, onChanged: saving ? null : (v) => setState(() => type = v))),
+                  const SizedBox(width: 10),
+                  Expanded(child: _ChoiceSegment<ExpenseType>(label: 'Fixed', value: ExpenseType.fixed, groupValue: type, onChanged: saving ? null : (v) => setState(() => type = v))),
+                ]),
+                const SizedBox(height: 10),
+                Row(children: [
+                  Expanded(child: _ChoiceSegment<ExpenseStatus>(label: 'Paid', value: ExpenseStatus.paid, groupValue: status, onChanged: saving ? null : (v) => setState(() => status = v))),
+                  const SizedBox(width: 10),
+                  Expanded(child: _ChoiceSegment<ExpenseStatus>(label: 'Upcoming', value: ExpenseStatus.upcoming, groupValue: status, onChanged: saving ? null : (v) => setState(() => status = v))),
+                ]),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: saving ? null : save,
+                    child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: Text(saving ? 'Saving...' : 'Save expense')),
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 10),
-            ],
+              ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ChoiceSegment<T> extends StatelessWidget {
+  final String label;
+  final T value;
+  final T groupValue;
+  final ValueChanged<T>? onChanged;
+
+  const _ChoiceSegment({required this.label, required this.value, required this.groupValue, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = value == groupValue;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: onChanged == null ? null : () => onChanged!(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        decoration: BoxDecoration(
+          color: selected ? Theme.of(context).colorScheme.primaryContainer : AppColors.surfaceAlt,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: selected ? Theme.of(context).colorScheme.primary : AppColors.line),
+        ),
+        child: Center(child: Text(label, style: TextStyle(fontWeight: FontWeight.w700, color: selected ? Theme.of(context).colorScheme.onPrimaryContainer : null))),
       ),
     );
   }

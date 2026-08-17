@@ -1,264 +1,182 @@
 import 'package:flutter/material.dart';
 
+import '../models/budget.dart';
 import '../models/expense.dart';
-import '../services/firestore_service.dart';
+import '../state/app_state.dart';
+import '../theme/app_theme.dart';
 import '../widgets/spending_chart.dart';
 
-class AnalyticsScreen extends StatefulWidget {
+class AnalyticsScreen extends StatelessWidget {
   const AnalyticsScreen({super.key});
 
-  @override
-  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
-}
+  String _money(double v) => 'Rs. ${v.toStringAsFixed(0)}';
+  String _date(DateTime d) => '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
 
-class _AnalyticsScreenState extends State<AnalyticsScreen> {
-  final FirestoreService expenseService = FirestoreService();
-
-  List<Expense> expenses = [];
-  bool loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAnalytics();
-  }
-
-  Future<void> _loadAnalytics() async {
-    final savedExpenses = await expenseService.getExpenses().first;
-
-    if (!mounted) return;
-
-    setState(() {
-      expenses = savedExpenses;
-      loading = false;
-    });
-  }
-
-  double get totalSpending {
-    double total = 0;
-
-    for (final expense in expenses) {
-      total += expense.amount;
+  Map<String, double> _categoryTotals(List<Expense> expenses) {
+    final result = <String, double>{};
+    for (final e in expenses) {
+      result[e.category] = (result[e.category] ?? 0) + e.amount;
     }
-
-    return total;
+    return result;
   }
 
-  Map<String, double> get categoryTotals {
-    final Map<String, double> totals = {};
-
-    for (final expense in expenses) {
-      totals[expense.category] =
-          (totals[expense.category] ?? 0) + expense.amount;
-    }
-
-    return totals;
-  }
-
-  String get topCategory {
-    if (categoryTotals.isEmpty) {
-      return "No Data";
-    }
-
-    String category = categoryTotals.keys.first;
-    double highestAmount = categoryTotals[category]!;
-
-    categoryTotals.forEach((key, value) {
-      if (value > highestAmount) {
-        category = key;
-        highestAmount = value;
-      }
-    });
-
-    return category;
+  double _periodSpent(List<Expense> allExpenses, BudgetPeriodInfo period) {
+    return allExpenses
+        .where((e) => e.status == ExpenseStatus.paid && !e.date.isBefore(period.start) && !e.date.isAfter(period.end))
+        .fold<double>(0, (sum, e) => sum + e.amount);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text("Analytics"),
-        centerTitle: true,
-      ),
-      body: loading
-          ? const Center(
-              child: CircularProgressIndicator(),
-            )
-          : RefreshIndicator(
-              onRefresh: _loadAnalytics,
-              child: SingleChildScrollView(
+    return ListenableBuilder(
+      listenable: AppState.instance,
+      builder: (context, _) => guardBuild('Analytics', () => AppState.instance.refresh(), () {
+        final theme = Theme.of(context);
+        final state = AppState.instance;
+        final plan = state.plan;
+        final period = state.currentPeriod;
+        final periodExpenses = state.periodExpenses(period);
+        final allExpenses = state.expenses;
+        final snapshot = state.snapshot();
+        final categoryTotals = _categoryTotals(periodExpenses);
+        final total = periodExpenses.fold<double>(0, (sum, e) => sum + e.amount);
+        final topCategory = categoryTotals.isEmpty ? 'No spending' : categoryTotals.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+        final yearPeriods = plan.period == BudgetPeriod.yearly
+            ? state.yearlyPeriodsFrom(period.start)
+            : <BudgetPeriodInfo>[];
+
+        return Scaffold(
+          backgroundColor: AppColors.canvas,
+          appBar: AppBar(title: const Text('Analytics')),
+          body: SafeArea(
+            child: RefreshIndicator(
+              onRefresh: state.refresh,
+              color: AppColors.primary,
+              child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "Spending Overview",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    Row(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+                children: [
+                  Text('Understand your spending', style: theme.textTheme.headlineMedium),
+                  const SizedBox(height: 5),
+                  Text('${plan.periodLabel} view • ${_date(period.start)} – ${_date(period.end)}', style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: 20),
+                  FadeSlideIn(
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: Card(
-                            elevation: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.account_balance_wallet,
-                                    size: 32,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    "Total Spending",
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    "Rs. ${totalSpending.toStringAsFixed(0)}",
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        const SizedBox(width: 12),
-
-                        Expanded(
-                          child: Card(
-                            elevation: 3,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Icons.receipt_long,
-                                    size: 32,
-                                  ),
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    "Expenses",
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    expenses.length.toString(),
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
+                        Expanded(child: _Metric(label: 'Spent', value: _money(total))),
+                        const SizedBox(width: 10),
+                        Expanded(child: _Metric(label: 'Top category', value: topCategory)),
                       ],
                     ),
-
-                    const SizedBox(height: 15),
-
-                    Card(
-                      elevation: 3,
-                      child: ListTile(
-                        leading: const Icon(Icons.pie_chart),
-                        title: const Text("Top Spending Category"),
-                        subtitle: Text(
-                          topCategory == "No Data"
-                              ? "No expenses recorded"
-                              : "$topCategory - Rs. ${categoryTotals[topCategory]!.toStringAsFixed(0)}",
-                        ),
-                      ),
+                  ),
+                  const SizedBox(height: 10),
+                  FadeSlideIn(index: 1, child: _Metric(label: 'Safe daily spend', value: _money(snapshot.safeDailySpend))),
+                  const SizedBox(height: 24),
+                  Text('Category mix', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 12),
+                  FadeSlideIn(
+                    index: 2,
+                    child: FlatSurface(
+                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
+                      child: periodExpenses.isEmpty
+                          ? const SizedBox(height: 220, child: Center(child: Text('No spending recorded for this period.')))
+                          : SpendingChart(expenses: periodExpenses),
                     ),
-
-                    const SizedBox(height: 25),
-
-                    const Text(
-                      "Category Distribution",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 15),
-
-                    Card(
-                      elevation: 3,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: expenses.isEmpty
-                            ? const SizedBox(
-                                height: 220,
-                                child: Center(
-                                  child: Text(
-                                    "No expenses available for analysis.",
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              )
-                            : SpendingChart(
-                                expenses: expenses,
-                              ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 25),
-
-                    const Text(
-                      "Category Details",
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    if (categoryTotals.isEmpty)
-                      const Card(
-                        child: Padding(
-                          padding: EdgeInsets.all(16),
-                          child: Text(
-                            "Add expenses to see category details.",
+                  ),
+                  if (plan.period == BudgetPeriod.yearly) ...[
+                    const SizedBox(height: 28),
+                    Text('Year at a glance', style: theme.textTheme.titleLarge),
+                    const SizedBox(height: 6),
+                    Text('Your 12 budget months with planned and actual spending.', style: theme.textTheme.bodyMedium),
+                    const SizedBox(height: 14),
+                    ...List.generate(yearPeriods.length, (index) {
+                      final p = yearPeriods[index];
+                      final spent = _periodSpent(allExpenses, p);
+                      final target = plan.normalizedAllocations[index];
+                      final ratio = target <= 0 ? 0.0 : (spent / target).clamp(0.0, 1.0).toDouble();
+                      final isCurrent = p.start == period.start;
+                      return FadeSlideIn(
+                        index: index + 3,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          child: FlatSurface(
+                            padding: const EdgeInsets.all(15),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(children: [
+                                  Expanded(child: Text('${_date(p.start)} – ${_date(p.end)}', style: const TextStyle(fontWeight: FontWeight.w700))),
+                                  if (isCurrent) const StatusPill(label: 'Current', color: AppColors.primary),
+                                ]),
+                                const SizedBox(height: 9),
+                                Row(children: [
+                                  Expanded(child: AnimatedBar(value: ratio, minHeight: 7)),
+                                  const SizedBox(width: 12),
+                                  Text('${ratio * 100 >= 100 ? 100 : (ratio * 100).toStringAsFixed(0)}%', style: const TextStyle(fontWeight: FontWeight.w800)),
+                                ]),
+                                const SizedBox(height: 8),
+                                Row(children: [
+                                  Expanded(child: Text('Spent ${_money(spent)}', style: theme.textTheme.bodySmall)),
+                                  Text('Plan ${_money(target)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                                ]),
+                              ],
+                            ),
                           ),
                         ),
-                      )
-                    else
-                      ...categoryTotals.entries.map(
-                        (entry) {
-                          return Card(
-                            child: ListTile(
-                              leading: const Icon(Icons.category),
-                              title: Text(entry.key),
-                              trailing: Text(
-                                "Rs. ${entry.value.toStringAsFixed(0)}",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                      );
+                    }),
+                  ],
+                  const SizedBox(height: 22),
+                  Text('Category details', style: theme.textTheme.titleLarge),
+                  const SizedBox(height: 10),
+                  if (categoryTotals.isEmpty)
+                    FlatSurface(padding: const EdgeInsets.all(18), child: Text('Add expenses to see category details.', style: theme.textTheme.bodyMedium))
+                  else
+                    ...((categoryTotals.entries.toList()..sort((a, b) => b.value.compareTo(a.value)))
+                        .toList()
+                        .asMap()
+                        .entries
+                        .map((row) => FadeSlideIn(
+                              index: row.key,
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: 8),
+                                child: FlatSurface(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      IconBadge(icon: Icons.category_rounded, color: AppColors.forCategory(row.value.key), size: 38, iconSize: 18),
+                                      const SizedBox(width: 12),
+                                      Expanded(child: Text(row.value.key, style: const TextStyle(fontWeight: FontWeight.w700))),
+                                      Text(_money(row.value.value), style: const TextStyle(fontWeight: FontWeight.w800)),
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
-                      ),
-                  ],
-                ),
+                            ))),
+                ],
               ),
             ),
+          ),
+        );
+      }),
     );
   }
+}
+
+class _Metric extends StatelessWidget {
+  final String label;
+  final String value;
+  const _Metric({required this.label, required this.value});
+  @override
+  Widget build(BuildContext context) => FlatSurface(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 6),
+            Text(value, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
+          ],
+        ),
+      );
 }

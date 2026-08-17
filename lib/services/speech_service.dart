@@ -4,13 +4,13 @@ class SpeechService {
   final SpeechToText speech = SpeechToText();
 
   Future<String> listen() async {
-    bool available = await speech.initialize();
+    final available = await speech.initialize();
 
     if (!available) {
-      return "";
+      return '';
     }
 
-    String result = "";
+    String result = '';
 
     await speech.listen(
       onResult: (value) {
@@ -19,9 +19,12 @@ class SpeechService {
     );
 
     await Future.delayed(const Duration(seconds: 5));
-
     await speech.stop();
 
     return result;
+  }
+
+  void dispose() {
+    speech.stop();
   }
 }
