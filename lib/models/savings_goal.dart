@@ -23,10 +23,31 @@ class SavingsGoal {
     return end.difference(DateTime(today.year, today.month, today.day)).inDays;
   }
 
-  double get suggestedMonthlySaving {
-    final months = (daysRemaining / 30.44).ceil().clamp(1, 1200);
-    return remaining / months;
+  /// Number of calendar months available from [referenceDate] through the
+  /// target month. The current month is included, so the schedule naturally
+  /// rebalances as a user saves more/less and as a new month begins.
+  int remainingMonths([DateTime? referenceDate]) {
+    final reference = referenceDate ?? DateTime.now();
+    final today = DateTime(reference.year, reference.month, reference.day);
+    final target = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    if (target.isBefore(today)) return 1;
+
+    final months =
+        (target.year - today.year) * 12 +
+        (target.month - today.month) +
+        1;
+    return months.clamp(1, 1200).toInt();
   }
+
+  /// Dynamic monthly contribution required to reach the goal on time.
+  /// It is recalculated from the current remaining balance every time, so
+  /// contributing above or below the previous pace automatically changes the
+  /// future monthly requirement.
+  double requiredMonthlySaving([DateTime? referenceDate]) {
+    return remaining / remainingMonths(referenceDate);
+  }
+
+  double get suggestedMonthlySaving => requiredMonthlySaving();
 
   Map<String, dynamic> toMap() => {
         'id': id,

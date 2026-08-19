@@ -100,7 +100,7 @@ class FinancialPlannerService {
           .fold<double>(0, (goalSum, item) => goalSum + item.amount);
       final remainingThisCycle = _max(
         0,
-        goal.suggestedMonthlySaving - alreadyContributed,
+        goal.requiredMonthlySaving(period.start) - alreadyContributed,
       );
       return sum + remainingThisCycle;
     });

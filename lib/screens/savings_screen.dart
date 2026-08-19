@@ -1177,6 +1177,20 @@ class _GoalCard
               ),
 
               const SizedBox(
+                height: 6,
+              ),
+
+              Text(
+                'Current required pace: ${_moneyStatic(goal.requiredMonthlySaving())} / month',
+                style:
+                    const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primaryDeep,
+                ),
+              ),
+
+              const SizedBox(
                 height: 16,
               ),
 

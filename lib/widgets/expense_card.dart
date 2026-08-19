@@ -313,6 +313,13 @@ class ExpenseCard extends StatelessWidget {
                           color: AppColors.gold,
                         ),
                       ],
+                      if (expense.recurrence != ExpenseRecurrence.none) ...[
+                        const SizedBox(width: 6),
+                        StatusPill(
+                          label: expense.recurrence.label,
+                          color: AppColors.slateBlue,
+                        ),
+                      ],
                     ],
                   ),
                 ],

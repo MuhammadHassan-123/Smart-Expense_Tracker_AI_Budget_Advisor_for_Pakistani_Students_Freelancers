@@ -42,6 +42,7 @@ class _ExpenseFormState extends State<ExpenseForm> {
   String category = 'Food';
   ExpenseType type = ExpenseType.variable;
   ExpenseStatus status = ExpenseStatus.paid;
+  ExpenseRecurrence recurrence = ExpenseRecurrence.none;
   bool listening = false;
   bool saving = false;
 
@@ -79,7 +80,12 @@ class _ExpenseFormState extends State<ExpenseForm> {
         category: category,
         date: DateTime.now(),
         type: type,
-        status: status,
+        // A recurring fixed expense is an upcoming commitment until
+        // the user explicitly marks that occurrence as paid.
+        status: type == ExpenseType.fixed && recurrence != ExpenseRecurrence.none
+            ? ExpenseStatus.upcoming
+            : status,
+        recurrence: type == ExpenseType.fixed ? recurrence : ExpenseRecurrence.none,
       ));
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
@@ -148,10 +154,36 @@ class _ExpenseFormState extends State<ExpenseForm> {
                 ),
                 const SizedBox(height: 18),
                 Row(children: [
-                  Expanded(child: _ChoiceSegment<ExpenseType>(label: 'Variable', value: ExpenseType.variable, groupValue: type, onChanged: saving ? null : (v) => setState(() => type = v))),
+                  Expanded(child: _ChoiceSegment<ExpenseType>(label: 'Variable', value: ExpenseType.variable, groupValue: type, onChanged: saving ? null : (v) => setState(() { type = v; if (v != ExpenseType.fixed) recurrence = ExpenseRecurrence.none; }))),
                   const SizedBox(width: 10),
                   Expanded(child: _ChoiceSegment<ExpenseType>(label: 'Fixed', value: ExpenseType.fixed, groupValue: type, onChanged: saving ? null : (v) => setState(() => type = v))),
                 ]),
+                if (type == ExpenseType.fixed) ...[
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<ExpenseRecurrence>(
+                    initialValue: recurrence,
+                    decoration: const InputDecoration(
+                      labelText: 'Recurrence',
+                      prefixIcon: Icon(Icons.repeat_rounded),
+                    ),
+                    items: ExpenseRecurrence.values
+                        .map((item) => DropdownMenuItem<ExpenseRecurrence>(
+                              value: item,
+                              child: Text(item.label),
+                            ))
+                        .toList(),
+                    onChanged: saving
+                        ? null
+                        : (value) => setState(() {
+                              recurrence = value ?? ExpenseRecurrence.none;
+                            }),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'For recurring fixed expenses, the app creates only the instance for the period that has arrived.',
+                    style: TextStyle(fontSize: 11.5, color: AppColors.inkMuted),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Row(children: [
                   Expanded(child: _ChoiceSegment<ExpenseStatus>(label: 'Paid', value: ExpenseStatus.paid, groupValue: status, onChanged: saving ? null : (v) => setState(() => status = v))),

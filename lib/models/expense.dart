@@ -2,6 +2,24 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ExpenseType { variable, fixed }
 enum ExpenseStatus { paid, upcoming }
+enum ExpenseRecurrence { none, daily, weekly, monthly, yearly }
+
+extension ExpenseRecurrenceLabel on ExpenseRecurrence {
+  String get label {
+    switch (this) {
+      case ExpenseRecurrence.none:
+        return 'None / Not sure';
+      case ExpenseRecurrence.daily:
+        return 'Daily';
+      case ExpenseRecurrence.weekly:
+        return 'Weekly';
+      case ExpenseRecurrence.monthly:
+        return 'Monthly';
+      case ExpenseRecurrence.yearly:
+        return 'Yearly';
+    }
+  }
+}
 
 class Expense {
   final String? id;
@@ -11,6 +29,8 @@ class Expense {
   final DateTime date;
   final ExpenseType type;
   final ExpenseStatus status;
+  final ExpenseRecurrence recurrence;
+  final String? recurrenceId;
 
   Expense({
     this.id,
@@ -20,6 +40,8 @@ class Expense {
     required this.date,
     this.type = ExpenseType.variable,
     this.status = ExpenseStatus.paid,
+    this.recurrence = ExpenseRecurrence.none,
+    this.recurrenceId,
   });
 
   Map<String, dynamic> toMap() => {
@@ -29,6 +51,8 @@ class Expense {
         'date': Timestamp.fromDate(date),
         'type': type.name,
         'status': status.name,
+        'recurrence': recurrence.name,
+        'recurrenceId': recurrenceId,
       };
 
   factory Expense.fromMap(Map<String, dynamic> map, String documentId) {
@@ -46,6 +70,11 @@ class Expense {
         (value) => value.name == map['status']?.toString(),
         orElse: () => ExpenseStatus.paid,
       ),
+      recurrence: ExpenseRecurrence.values.firstWhere(
+        (value) => value.name == map['recurrence']?.toString(),
+        orElse: () => ExpenseRecurrence.none,
+      ),
+      recurrenceId: map['recurrenceId']?.toString(),
     );
   }
 }

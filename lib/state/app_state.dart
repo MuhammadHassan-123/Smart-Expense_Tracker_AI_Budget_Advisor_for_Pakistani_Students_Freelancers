@@ -101,6 +101,18 @@ class AppState extends ChangeNotifier {
       if (outcome.contributions != null) contributions = outcome.contributions!;
       if (outcome.isEmpty) anyFailed = true;
     }
+    try {
+      // Recurring fixed expenses are materialized only for the period that
+      // has actually arrived. This keeps future months out of the expense
+      // list while still making the current month's commitments visible.
+      expenses = await _expenseService.ensureRecurringExpensesForPeriod(
+        currentPeriod,
+      );
+    } catch (_) {
+      // A recurring-expense materialization issue must never prevent the
+      // rest of the financial state from loading.
+    }
+
     initError = anyFailed ? 'Some data could not be loaded. Pull down to retry.' : null;
     _initialized = true;
     notifyListeners();
